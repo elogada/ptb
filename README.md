@@ -119,14 +119,6 @@ Then restart Apache.
 3. Open the file:
 ```populate_command.txt```
 
-
-You can either:
-- Replace your existing file, OR
-- Copy its contents into your current Apache vhosts config
-
-Then restart Apache.
-
-
 4. Copy everything inside and execute it
 
 This will:
