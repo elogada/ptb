@@ -138,13 +138,15 @@ This will:
 
 ### 5. Default Credentials
 
-```Admin:
+```
+Admin:
 username: admin
 password: admin_pass
 
 User:
 username: user
-password: user_pass```
+password: user_pass
+```
 
 
 ---
