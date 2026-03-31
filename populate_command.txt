@@ -1,0 +1,392 @@
+CREATE DATABASE IF NOT EXISTS ptb;
+USE ptb;
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS spiels;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS users;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- =========================================================
+-- USERS
+-- =========================================================
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'csr') NOT NULL DEFAULT 'csr',
+    is_active TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users (username, password, role, is_active)
+VALUES
+('admin', MD5('admin_pass'), 'admin', 1),
+('user', MD5('user_pass'), 'csr', 1);
+
+-- =========================================================
+-- SPIELS
+-- =========================================================
+CREATE TABLE spiels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by INT NOT NULL,
+    updated_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+INSERT INTO spiels (title, category, content, created_by, updated_by, is_active)
+VALUES
+(
+    'Greeting - Initial Reply',
+    'Greeting',
+    'Hello po! 😊 Ano pong ipapabili natin today? Pakisend lang po ng items at location ninyo.',
+    1,
+    1,
+    1
+),
+(
+    'Clarification - Missing Details',
+    'Clarification',
+    'Pwede po pa-clarify yung order? Paki-confirm po item details at exact location para maiwasan delay.',
+    1,
+    1,
+    1
+),
+(
+    'Order Complete - Delivered',
+    'Order Complete',
+    'Delivered na po ang order ninyo. Maraming salamat po! 😊 Message lang ulit anytime kung may kailangan kayo.',
+    1,
+    1,
+    1
+),
+(
+    'Cancellation - Customer Cancelled',
+    'Cancellation',
+    'Noted po, cancelled na ang order. Thank you po, and feel free to message ulit anytime.',
+    1,
+    1,
+    1
+);
+
+-- =========================================================
+-- PRODUCTS
+-- =========================================================
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(150) NOT NULL,
+    category ENUM('Snacks', 'Frozen Goods', 'Canned Goods') NOT NULL,
+    unit VARCHAR(50) DEFAULT NULL,
+    cost_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    selling_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    stock_mode ENUM('Stocked', 'On-Demand') NOT NULL DEFAULT 'On-Demand',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    notes TEXT DEFAULT NULL,
+    created_by INT NOT NULL,
+    updated_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+INSERT INTO products (
+    product_name,
+    category,
+    unit,
+    cost_price,
+    selling_price,
+    stock_mode,
+    is_active,
+    notes,
+    created_by,
+    updated_by
+)
+VALUES
+(
+    'Argentina Corned Beef',
+    'Canned Goods',
+    'Can',
+    0.00,
+    0.00,
+    'Stocked',
+    1,
+    NULL,
+    1,
+    1
+),
+(
+    'Jack n Jill Chipy',
+    'Snacks',
+    'Pack',
+    0.00,
+    0.00,
+    'Stocked',
+    1,
+    NULL,
+    1,
+    1
+),
+(
+    '555 Sardines (in Tomato Sauce)',
+    'Canned Goods',
+    'Can',
+    0.00,
+    0.00,
+    'Stocked',
+    1,
+    NULL,
+    1,
+    1
+),
+(
+    '555 Sardines (In Natural Oil)',
+    'Canned Goods',
+    'Can',
+    0.00,
+    0.00,
+    'Stocked',
+    1,
+    NULL,
+    1,
+    1
+),
+(
+    'Century Tuna (Flakes in Oil)',
+    'Canned Goods',
+    'Can',
+    0.00,
+    0.00,
+    'Stocked',
+    1,
+    NULL,
+    1,
+    1
+),
+(
+    'Purefoods Classic Pork Tocino',
+    'Frozen Goods',
+    'Pack',
+    0.00,
+    0.00,
+    'Stocked',
+    1,
+    NULL,
+    1,
+    1
+);
+
+-- =========================================================
+-- ORDERS
+-- Final version includes:
+-- - expanded status enum
+-- - closure_reason
+-- - items_json
+-- =========================================================
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    customer_contact VARCHAR(100) DEFAULT NULL,
+    delivery_address TEXT NOT NULL,
+    order_items TEXT NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    delivery_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    status ENUM(
+        'New',
+        'For Confirmation',
+        'Confirmed',
+        'Preparing',
+        'Out for Delivery',
+        'Completed',
+        'Cancelled',
+        'Rejected'
+    ) NOT NULL DEFAULT 'New',
+    closure_reason VARCHAR(100) DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    items_json TEXT DEFAULT NULL,
+    assigned_user_id INT DEFAULT NULL,
+    created_by INT NOT NULL,
+    updated_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (assigned_user_id) REFERENCES users(id),
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+INSERT INTO orders (
+    customer_name,
+    customer_contact,
+    delivery_address,
+    order_items,
+    subtotal,
+    delivery_fee,
+    total_amount,
+    status,
+    closure_reason,
+    notes,
+    items_json,
+    assigned_user_id,
+    created_by,
+    updated_by
+)
+VALUES
+(
+    'Maria Santos',
+    'FB: Maria Santos',
+    '12 Mahinhin Street, Quezon City',
+    '2x Sardines, 1x Instant Noodles',
+    180.00,
+    60.00,
+    240.00,
+    'New',
+    NULL,
+    'Waiting for CSR to process.',
+    NULL,
+    2,
+    1,
+    1
+),
+(
+    'Kevin Bautista',
+    '09171231234',
+    '88 Commonwealth Avenue, Quezon City',
+    '1x Milk Tea, 2x Sandwich',
+    220.00,
+    70.00,
+    290.00,
+    'For Confirmation',
+    NULL,
+    'Sent total already, waiting for customer confirmation.',
+    NULL,
+    2,
+    1,
+    2
+),
+(
+    'Angela Reyes',
+    'FB: Angela Reyes',
+    '45 Kalayaan Avenue, Quezon City',
+    '3x Canned Tuna, 1x Bread',
+    200.00,
+    65.00,
+    265.00,
+    'Out for Delivery',
+    NULL,
+    'Rider booked via Lalamove.',
+    NULL,
+    2,
+    1,
+    2
+),
+(
+    'Roberto Lim',
+    '09981234567',
+    '17 Visayas Avenue, Quezon City',
+    '1x Cooking Oil, 2x Soy Sauce',
+    300.00,
+    70.00,
+    370.00,
+    'Completed',
+    NULL,
+    'Delivered successfully, paid in cash.',
+    NULL,
+    2,
+    1,
+    2
+),
+(
+    'Jessa Cruz',
+    'FB: Jessa Cruz',
+    'Project 6, Quezon City',
+    '1x Shampoo, 1x Soap',
+    150.00,
+    60.00,
+    210.00,
+    'Cancelled',
+    'Customer unresponsive',
+    'No reply after multiple follow-ups.',
+    NULL,
+    2,
+    1,
+    2
+),
+(
+    'Mark Villanueva',
+    '09179876543',
+    'Fairview, Quezon City',
+    '2x Softdrinks, 1x Chips',
+    120.00,
+    50.00,
+    170.00,
+    'Cancelled',
+    'No funds / cannot pay',
+    'Customer said walang budget.',
+    NULL,
+    2,
+    1,
+    2
+),
+(
+    'Unknown User',
+    'FB: Dummy Account',
+    'No clear address given',
+    '5x Expensive Gadgets',
+    5000.00,
+    150.00,
+    5150.00,
+    'Rejected',
+    'Fake buyer / suspicious',
+    'Inconsistent details, refused to confirm properly.',
+    NULL,
+    2,
+    1,
+    2
+),
+(
+    'Carlos Mendoza',
+    '09991112222',
+    'Cubao, Quezon City',
+    '1x Grocery Set',
+    800.00,
+    80.00,
+    880.00,
+    'Rejected',
+    'Abusive / hostile behavior',
+    'Customer became aggressive during conversation.',
+    NULL,
+    2,
+    1,
+    2
+);
+
+-- =========================================================
+-- AUDIT LOGS
+-- =========================================================
+CREATE TABLE audit_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    target_id INT DEFAULT NULL,
+    details TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+INSERT INTO audit_logs (user_id, action, target_type, target_id, details)
+VALUES
+(1, 'ADD_SPIEL', 'spiel', 1, 'Admin added a new Greeting spiel.'),
+(2, 'VIEW_SPIELS', 'spiel', NULL, 'CSR accessed the Mga Spiel page.');
