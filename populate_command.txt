@@ -1,0 +1,294 @@
+CREATE DATABASE IF NOT EXISTS ptb
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+USE ptb;
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS spiels;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS users;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'csr') NOT NULL DEFAULT 'csr',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users (username, password, role, is_active)
+VALUES
+('admin', MD5('admin_pass'), 'admin', 1),
+('user', MD5('user_pass'), 'csr', 1);
+
+CREATE TABLE spiels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by INT NOT NULL,
+    updated_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_spiels_created_by FOREIGN KEY (created_by) REFERENCES users(id),
+    CONSTRAINT fk_spiels_updated_by FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+INSERT INTO spiels (title, category, content, is_active, created_by, updated_by)
+VALUES
+('Greeting - Initial Reply', 'Greeting', 'Hello po! 😊 Ano pong ipapabili natin today? Pakisend lang po ng items at location ninyo.', 1, 1, 1),
+('Clarification - Missing Details', 'Clarification', 'Pwede po pa-clarify yung order? Paki-confirm po item details at exact location para maiwasan delay.', 1, 1, 1),
+('Order Complete - Delivered', 'Order Complete', 'Delivered na po ang order ninyo. Maraming salamat po! 😊 Message lang ulit anytime kung may kailangan kayo.', 1, 1, 1),
+('Cancellation - Customer Cancelled', 'Cancellation', 'Noted po, cancelled na ang order. Thank you po, and feel free to message ulit anytime.', 1, 1, 1),
+('Follow-up - No Response', 'No Response', 'Hello po, follow-up lang po kami sa order ninyo. Pakiconfirm lang po if tuloy tayo para maiproseso namin nang maayos.', 1, 1, 1),
+('Declined Service - Suspicious', 'Declined Service', 'Pasensya na po, hindi namin maipaproceed ang order at this time. Thank you po sa understanding.', 1, 1, 1),
+('Boundary Setting - Hostile Customer', 'Boundary Setting', 'Pasensya na po, pero hindi na namin maipagpapatuloy ang transaction na ito. Thank you po sa understanding.', 1, 1, 1);
+
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(150) NOT NULL,
+    category ENUM('Snacks', 'Frozen Goods', 'Canned Goods') NOT NULL,
+    unit VARCHAR(50) DEFAULT NULL,
+    cost_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    selling_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    stock_mode ENUM('Stocked', 'On-Demand') NOT NULL DEFAULT 'On-Demand',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    notes TEXT DEFAULT NULL,
+    created_by INT NOT NULL,
+    updated_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_products_created_by FOREIGN KEY (created_by) REFERENCES users(id),
+    CONSTRAINT fk_products_updated_by FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+INSERT INTO products (
+    product_name,
+    category,
+    unit,
+    cost_price,
+    selling_price,
+    stock_mode,
+    is_active,
+    notes,
+    created_by,
+    updated_by
+)
+VALUES
+('Argentina Corned Beef', 'Canned Goods', 'Can', 48.00, 55.00, 'Stocked', 1, NULL, 1, 1),
+('Jack n Jill Chipy', 'Snacks', 'Pack', 9.00, 12.00, 'Stocked', 1, NULL, 1, 1),
+('555 Sardines (in Tomato Sauce)', 'Canned Goods', 'Can', 22.00, 26.00, 'Stocked', 1, NULL, 1, 1),
+('555 Sardines (In Natural Oil)', 'Canned Goods', 'Can', 24.00, 28.00, 'Stocked', 1, NULL, 1, 1),
+('Century Tuna (Flakes in Oil)', 'Canned Goods', 'Can', 34.00, 39.00, 'Stocked', 1, NULL, 1, 1),
+('Purefoods Classic Pork Tocino', 'Frozen Goods', 'Pack', 118.00, 135.00, 'Stocked', 1, NULL, 1, 1);
+
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    customer_contact VARCHAR(100) DEFAULT NULL,
+    delivery_address TEXT NOT NULL,
+    order_items TEXT NOT NULL,
+    order_items_json LONGTEXT DEFAULT NULL,
+    subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    delivery_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    status ENUM(
+        'New',
+        'For Confirmation',
+        'Confirmed',
+        'Preparing',
+        'Out for Delivery',
+        'Completed',
+        'Cancelled',
+        'Rejected'
+    ) NOT NULL DEFAULT 'New',
+    closure_reason VARCHAR(100) DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    assigned_user_id INT DEFAULT NULL,
+    created_by INT NOT NULL,
+    updated_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_orders_assigned_user FOREIGN KEY (assigned_user_id) REFERENCES users(id),
+    CONSTRAINT fk_orders_created_by FOREIGN KEY (created_by) REFERENCES users(id),
+    CONSTRAINT fk_orders_updated_by FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+INSERT INTO orders (
+    customer_name,
+    customer_contact,
+    delivery_address,
+    order_items,
+    order_items_json,
+    subtotal,
+    delivery_fee,
+    total_amount,
+    status,
+    closure_reason,
+    notes,
+    assigned_user_id,
+    created_by,
+    updated_by
+)
+VALUES
+(
+    'Maria Santos',
+    'FB: Maria Santos',
+    '12 Mahinhin Street, Quezon City',
+    '2x Argentina Corned Beef, 1x Jack n Jill Chipy',
+    '[{"product_id":1,"product_name":"Argentina Corned Beef","qty":2,"price":55},{"product_id":2,"product_name":"Jack n Jill Chipy","qty":1,"price":12}]',
+    122.00,
+    60.00,
+    182.00,
+    'New',
+    NULL,
+    'Waiting for CSR to process.',
+    2,
+    1,
+    1
+),
+(
+    'Kevin Bautista',
+    '09171231234',
+    '88 Commonwealth Avenue, Quezon City',
+    '2x Century Tuna (Flakes in Oil), 1x 555 Sardines (in Tomato Sauce)',
+    '[{"product_id":5,"product_name":"Century Tuna (Flakes in Oil)","qty":2,"price":39},{"product_id":3,"product_name":"555 Sardines (in Tomato Sauce)","qty":1,"price":26}]',
+    104.00,
+    70.00,
+    174.00,
+    'For Confirmation',
+    NULL,
+    'Sent total already, waiting for customer confirmation.',
+    2,
+    1,
+    2
+),
+(
+    'Angela Reyes',
+    'FB: Angela Reyes',
+    '45 Kalayaan Avenue, Quezon City',
+    '3x 555 Sardines (in Tomato Sauce), 1x Jack n Jill Chipy',
+    '[{"product_id":3,"product_name":"555 Sardines (in Tomato Sauce)","qty":3,"price":26},{"product_id":2,"product_name":"Jack n Jill Chipy","qty":1,"price":12}]',
+    90.00,
+    65.00,
+    155.00,
+    'Out for Delivery',
+    NULL,
+    'Rider booked via Lalamove.',
+    2,
+    1,
+    2
+),
+(
+    'Roberto Lim',
+    '09981234567',
+    '17 Visayas Avenue, Quezon City',
+    '1x Purefoods Classic Pork Tocino, 2x Century Tuna (Flakes in Oil)',
+    '[{"product_id":6,"product_name":"Purefoods Classic Pork Tocino","qty":1,"price":135},{"product_id":5,"product_name":"Century Tuna (Flakes in Oil)","qty":2,"price":39}]',
+    213.00,
+    70.00,
+    283.00,
+    'Completed',
+    NULL,
+    'Delivered successfully, paid in cash.',
+    2,
+    1,
+    2
+),
+(
+    'Jessa Cruz',
+    'FB: Jessa Cruz',
+    'Project 6, Quezon City',
+    '1x 555 Sardines (In Natural Oil), 1x Jack n Jill Chipy',
+    '[{"product_id":4,"product_name":"555 Sardines (In Natural Oil)","qty":1,"price":28},{"product_id":2,"product_name":"Jack n Jill Chipy","qty":1,"price":12}]',
+    40.00,
+    60.00,
+    100.00,
+    'Cancelled',
+    'Customer unresponsive',
+    'No reply after multiple follow-ups.',
+    2,
+    1,
+    2
+),
+(
+    'Mark Villanueva',
+    '09179876543',
+    'Fairview, Quezon City',
+    '2x Jack n Jill Chipy, 1x Argentina Corned Beef',
+    '[{"product_id":2,"product_name":"Jack n Jill Chipy","qty":2,"price":12},{"product_id":1,"product_name":"Argentina Corned Beef","qty":1,"price":55}]',
+    79.00,
+    50.00,
+    129.00,
+    'Cancelled',
+    'No funds / cannot pay',
+    'Customer said walang budget.',
+    2,
+    1,
+    2
+),
+(
+    'Unknown User',
+    'FB: Dummy Account',
+    'No clear address given',
+    '5x Purefoods Classic Pork Tocino, 5x Century Tuna (Flakes in Oil)',
+    '[{"product_id":6,"product_name":"Purefoods Classic Pork Tocino","qty":5,"price":135},{"product_id":5,"product_name":"Century Tuna (Flakes in Oil)","qty":5,"price":39}]',
+    870.00,
+    150.00,
+    1020.00,
+    'Rejected',
+    'Fake buyer / suspicious',
+    'Inconsistent details, refused to confirm properly.',
+    2,
+    1,
+    2
+),
+(
+    'Carlos Mendoza',
+    '09991112222',
+    'Cubao, Quezon City',
+    '2x Argentina Corned Beef, 2x 555 Sardines (in Tomato Sauce)',
+    '[{"product_id":1,"product_name":"Argentina Corned Beef","qty":2,"price":55},{"product_id":3,"product_name":"555 Sardines (in Tomato Sauce)","qty":2,"price":26}]',
+    162.00,
+    80.00,
+    242.00,
+    'Rejected',
+    'Abusive / hostile behavior',
+    'Customer became aggressive during conversation.',
+    2,
+    1,
+    2
+);
+
+CREATE TABLE audit_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    target_id INT DEFAULT NULL,
+    details TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_audit_logs_user FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+INSERT INTO audit_logs (user_id, action, target_type, target_id, details)
+VALUES
+(1, 'LOGIN', 'user', 1, 'Successful login for username: admin.'),
+(1, 'ADD_SPIEL', 'spiel', 1, 'Admin added a new Greeting spiel.'),
+(1, 'ADD_PRODUCT', 'product', 1, 'Product added. Name: Argentina Corned Beef. Category: Canned Goods. Unit: Can. Cost: 48.00. Selling: 55.00. Stock Mode: Stocked. Active: 1.'),
+(1, 'ADD_ORDER', 'order', 1, 'Order added. Customer: Maria Santos. Items: 2x Argentina Corned Beef, 1x Jack n Jill Chipy. Total: 182.00. Status: New.'),
+(2, 'VIEW_SPIELS', 'spiel', NULL, 'CSR accessed the Mga Spiel page.'),
+(1, 'EDIT_PRODUCT', 'product', 2, 'Product updated. Old Name: Jack n Jill Chipy | New Name: Jack n Jill Chipy. Old Selling: 10.00 | New Selling: 12.00.'),
+(1, 'EDIT_SPIEL', 'spiel', 2, 'Spiel updated. Old Title: Clarification - Missing Details | New Title: Clarification - Missing Details.'),
+(1, 'EDIT_ORDER', 'order', 3, 'Order updated. Old Status: Confirmed | New Status: Out for Delivery.'),
+(1, 'LOGOUT', 'user', 1, 'User logged out. Username: admin.');
+
+SELECT 'Fresh install complete.' AS status_message;
